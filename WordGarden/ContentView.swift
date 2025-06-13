@@ -5,6 +5,7 @@
 //  Created by Tushar Munge on 6/7/25.
 //
 
+import AVFAudio
 import SwiftUI
 
 extension View {
@@ -14,7 +15,7 @@ extension View {
 }
 
 struct ContentView: View {
-    private var wordsToGuess = ["SWITT", "DOG", "CAT"]  // All CAPS
+    private var wordsToGuess = ["SWIFT", "DOG", "CAT"]  // All CAPS
     // Have to define as 'static', so that it can be used to intialize
     // above. Structs don't alow initializing of member variables with others
     private static let maximumGuesses = 8
@@ -32,6 +33,7 @@ struct ContentView: View {
     @State private var imageName = "flower8"
     @State private var playAgainButtonLabel = "Another Word?"
     @State private var playAgainHidden = true
+    @State private var audioPlayer: AVAudioPlayer!
     @FocusState private var textFieldIsFocused: Bool
 
     var body: some View {
@@ -152,6 +154,7 @@ struct ContentView: View {
             Image(imageName)
                 .resizable()
                 .scaledToFit()
+                .animation(.easeIn(duration: 0.75), value: imageName)
         }
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
@@ -178,13 +181,27 @@ struct ContentView: View {
     }
 
     func updateGamePlay() {
-        // Deduct 1 from guessesRemaining, if the wrong letter was guessed,
-        // or the already guessed letter was guessed again
+        // Deduct 1 from guessesRemaining, if the wrong letter was guessed, or
+        // the already guessed letter was guessed again
         if !wordToGuess.contains(guessedLetter)
-            || lettersGuessed.contains(guessedLetter)
+            || (lettersGuessed.contains(guessedLetter)
+                && lettersGuessed.count > 1
+                && guessesRemaining == Self.maximumGuesses)
         {
             guessesRemaining -= 1
-            imageName = "flower\(guessesRemaining)"
+
+            // Animate crumbling leaf and play the incorrect sound
+            imageName = "wilt\(guessesRemaining)"
+
+            playSound(soundName: "incorrect")
+
+            // Delay change to the Flower image until after the wilt
+            // animation is done
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+                imageName = "flower\(guessesRemaining)"
+            }
+        } else {
+            playSound(soundName: "correct")
         }
 
         // When do we play another Word? When revealedWord does not
@@ -196,12 +213,16 @@ struct ContentView: View {
             wordsGuessed += 1
             currentWordIndex += 1
             playAgainHidden = false
+
+            playSound(soundName: "word-guessed")
         } else if guessesRemaining == 0 {
             gameStatusMessage = "So sorry, you're all out if Guesses."
 
             wordsMissed += 1
             currentWordIndex += 1
             playAgainHidden = false
+
+            playSound(soundName: "word-not-guessed")
         } else {
             //TODO: Redo this with LocalizedStringKey & Inflection
             gameStatusMessage =
@@ -215,6 +236,31 @@ struct ContentView: View {
         }
 
         guessedLetter = ""
+    }
+
+    func playSound(soundName: String) {
+        // Prior to playing a sound, check if it's already playing one.
+        // If it is, stop it. This prevents overlapping sounds from
+        // playing.
+        if audioPlayer != nil && audioPlayer.isPlaying {
+            audioPlayer.stop()
+        }
+
+        //TODO: - Get the Sound file -
+        guard let soundFile = NSDataAsset(name: soundName) else {
+            print("😡 Could not read file named \(soundName)")
+
+            return
+        }
+
+        do {
+            audioPlayer = try AVAudioPlayer(data: soundFile.data)
+            audioPlayer.play()
+        } catch {
+            print(
+                "😡 ERROR: \(error.localizedDescription) creating audioPlayer"
+            )
+        }
     }
 }
 
