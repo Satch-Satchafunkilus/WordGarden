@@ -184,8 +184,8 @@ struct ContentView: View {
         // Deduct 1 from guessesRemaining, if the wrong letter was guessed, or
         // the already guessed letter was guessed again
         if !wordToGuess.contains(guessedLetter)
-            || (lettersGuessed.contains(guessedLetter)
-                && lettersGuessed.count > 1
+            || (wordToGuess.contains(guessedLetter)
+                && lettersGuessed.count == 0
                 && guessesRemaining == Self.maximumGuesses)
         {
             guessesRemaining -= 1
@@ -210,6 +210,14 @@ struct ContentView: View {
             gameStatusMessage =
                 "You guessed it! It took you \(lettersGuessed.count) guesses to guess the Word."
 
+            // Use Inflection to pluralize word 'guess' to 'guesses' when needed
+            gameStatusMessage = String(
+                AttributedString(
+                    localized:
+                        "You guessed it! It took you ^[\(lettersGuessed.count) guesses to guess the Word.](inflect: true)"
+                ).characters
+            )
+            
             wordsGuessed += 1
             currentWordIndex += 1
             playAgainHidden = false
@@ -224,9 +232,13 @@ struct ContentView: View {
 
             playSound(soundName: "word-not-guessed")
         } else {
-            //TODO: Redo this with LocalizedStringKey & Inflection
-            gameStatusMessage =
-                "You've made ^[\(lettersGuessed.count) guesses](inflect: true)"
+            // Use Inflection to pluralize word 'guess' to 'guesses' when needed
+            gameStatusMessage = String(
+                AttributedString(
+                    localized:
+                        "You've made ^[\(lettersGuessed.count) guesses](inflect: true)"
+                ).characters
+            )
         }
 
         if currentWordIndex == wordsToGuess.count {
